@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oboyma Leads Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <button id="hamburger" class="hamburger" aria-label="Открыть меню">
+        <i data-lucide="menu"></i>
+    </button>
+
+    <!-- Cmd+K Modal -->
+    <div id="cmd-modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Быстрый поиск">
+        <div class="cmd-modal">
+            <input type="text" class="cmd-input" placeholder="Поиск лидов, настроек или чатов... (Esc для выхода)" aria-label="Поиск">
+            <div class="cmd-list">
+                <button class="cmd-item" data-nav="inbox"><i data-lucide="message-square"></i> Чат: Kirill Beginin (Telegram)</button>
+                <button class="cmd-item" data-nav="discovery"><i data-lucide="search"></i> Источники лидов: AI Генерация и Ручной режим</button>
+                <button class="cmd-item" data-nav="integrations"><i data-lucide="package"></i> Интеграции: n8n, amoCRM</button>
+                <button class="cmd-item" data-nav="billing"><i data-lucide="credit-card"></i> Подписка: Управление тарифом Pro</button>
+                <button class="cmd-item" data-nav="channels"><i data-lucide="link"></i> Каналы: Подключённые источники</button>
+            </div>
+            <div class="cmd-no-results">Ничего не найдено</div>
+        </div>
+    </div>
+
+    <!-- Suggest Channel Modal -->
+    <div id="suggest-channel-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Предложить канал">
+        <div class="modal-content">
+            <button class="modal-close" id="suggest-modal-close"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="mb-2" style="font-size:20px; font-weight:600;">Предложить новый канал</h2>
+            <p class="mb-6" style="color: var(--text-muted); font-size:14px;">Не нашли нужный чат в поиске? Отправьте ссылку, и мы добавим её в базу парсинга.</p>
+            <div class="form-group">
+                <label class="form-label">Ссылка на канал/чат</label>
+                <input type="text" class="form-control" placeholder="https://t.me/ai_ru" id="suggest-channel-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Комментарий (опционально)</label>
+                <textarea class="form-control" placeholder="Почему этот канал важен для проекта?" rows="2"></textarea>
+            </div>
+            <div class="flex justify-between items-center mt-6">
+                <button class="btn btn-ghost" id="suggest-modal-cancel">Отмена</button>
+                <button class="btn btn-primary" id="suggest-modal-submit">Отправить заявку</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lead Dialog Modal -->
+    <div id="lead-dialog-overlay" class="modal-overlay lead-dialog-overlay" role="dialog" aria-modal="true" aria-label="Диалог с лидом">
+        <div class="lead-dialog">
+            <div class="lead-dialog-header">
+                <div class="lead-dialog-title-group">
+                    <span class="lead-dialog-name">Имя лида</span>
+                    <span class="c-tag c-tag--telegram lead-dialog-platform">Telegram</span>
+                </div>
+                <div class="lead-dialog-header-actions">
+                    <button class="btn btn-ghost btn-icon lead-dialog-external" aria-label="Открыть профиль"><i data-lucide="external-link"></i></button>
+                    <button class="btn btn-ghost btn-icon lead-dialog-close" aria-label="Закрыть"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+            <div class="lead-dialog-body">
+                <div class="msg msg-ai"><strong>Лид:</strong> Здравствуйте! Интересует автоматизация процесса продаж для нашей компании.</div>
+                <div class="msg msg-user">Добрый день! Конечно, мы можем помочь. Какие процессы хотите автоматизировать?</div>
+                <div class="msg msg-ai"><strong>Лид:</strong> Нужно автоматизировать рассылки и квалификацию лидов.</div>
+            </div>
+            <div class="lead-dialog-footer">
+                <input type="text" class="lead-dialog-input" placeholder="Написать ответ..." aria-label="Ответ лиду">
+                <button class="btn btn-primary btn-send lead-dialog-send" aria-label="Отправить">➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" role="navigation" aria-label="Основная навигация">
+        <div class="logo">
+            <div class="logo-icon"></div>
+            Oboyma Leads
+        </div>
+
+        <button id="sidebar-search-btn" class="btn btn-outline sidebar-search">
+            <span>Поиск...</span>
+            <span class="kbd">Ctrl K</span>
+        </button>
+
+        <div class="project-context-wrapper">
+            <div class="project-selector">
+                <span class="project-label">Текущий проект</span>
+                <select class="project-dropdown" id="project-dropdown">
+                    <option>🚀 Внедрение ИИ</option>
+                    <option>🕵️‍♂️ Проект "Alibi" (СПБ)</option>
+                    <option>+ Создать проект</option>
+                </select>
+            </div>
+
+            <div class="project-label mb-2">Операционка</div>
+            <button class="nav-item active" data-tab="about"><i class="fa-solid fa-building"></i> О проекте</button>
+            <button class="nav-item" data-tab="analytics"><i class="fa-solid fa-chart-pie"></i> Аналитика проекта</button>
+            <button class="nav-item" data-tab="inbox"><i class="fa-solid fa-inbox"></i> Входящие лиды</button>
+
+            <div class="project-label mb-2 mt-4">Парсинг и ИИ</div>
+            <button class="nav-item" data-tab="channels"><i class="fa-solid fa-satellite-dish"></i> Каналы (Источники)</button>
+            <button class="nav-item" data-tab="discovery"><i class="fa-solid fa-wand-magic-sparkles"></i> Источники лидов</button>
+
+            <div class="project-label mb-2 mt-4">Workspace Oboyma Lab</div>
+            <button class="nav-item" data-tab="integrations"><i class="fa-solid fa-plug"></i> Интеграции (n8n, CRM)</button>
+            <button class="nav-item" data-tab="team"><i class="fa-solid fa-users"></i> Команда</button>
+            <button class="nav-item" data-tab="billing"><i class="fa-solid fa-credit-card"></i> Тарифы и оплата</button>
+        </div>
+
+        <div class="user-context-wrapper">
+            <div class="project-label mb-2">Профиль</div>
+            <button class="nav-item" data-tab="settings"><i class="fa-solid fa-user-gear"></i> Настройки пользователя</button>
+            <div class="user-profile" data-tab="settings" style="cursor: pointer;">
+                <div class="avatar">А</div>
+                <div class="user-info">
+                    <div class="user-name">Арина</div>
+                    <div class="user-role">Oboyma Lab · AI Pro</div>
+                </div>
+                <i class="fa-solid fa-gear" style="color: var(--text-muted); font-size: 14px;"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- ═══ О проекте ═══ -->
+        <div id="about" class="tab-content active">
+            <h1 class="header-title">О проекте</h1>
+            <p class="header-subtitle">Заполни профиль с помощью ИИ, чтобы система научилась искать твоих идеальных клиентов.</p>
+
+            <div class="progress-stepper">
+                <div class="step completed">1. Знакомство</div>
+                <div class="step active">2. Целевая аудитория</div>
+                <div class="step">3. Подтверждение</div>
+            </div>
+
+            <div class="about-layout">
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <div class="chat-avatar-icon"><i data-lucide="bot"></i></div>
+                        <div>
+                            <div class="chat-name">Лидочка (AI Объектив)</div>
+                            <div class="chat-status">● В сети, готова к работе</div>
+                        </div>
+                    </div>
+                    <div class="chat-body" aria-label="История сообщений">
+                        <div class="msg msg-ai">Привет, Арина! Я Лидочка — твой интеллектуальный ассистент от Oboyma Lab. Какую боль клиентов вы решаете?</div>
+                        <div class="msg msg-user">Мы занимаемся автоматизацией бизнес-процессов, внедряем ИИ-ассистентов для B2B и настраиваем автоворонки.</div>
+                        <div class="msg msg-ai">Отлично! Кто ваш идеальный клиент? Это фрилансеры, стартапы или крупный Enterprise?</div>
+                        <div class="msg msg-user">В основном средний B2B, инфобиз и агентства.</div>
+                        <div class="msg msg-ai">
+                            Поняла. <strong>Подытожим:</strong><br><br>Ваша компания занимается внедрением ИИ и автоматизацией бизнес-процессов. Ваша целевая аудитория — средний B2B, инфобизнес и digital-агентства.<br><br><em>Всё верно? Если да, я заберу эту информацию в ядро системы.</em>
+                            <div class="msg-actions">
+                                <button class="btn btn-primary show-toast" data-msg="Профиль проекта успешно сохранен в ядро ИИ!">Всё верно, сохранить</button>
+                                <button class="btn btn-outline">Внести правки</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-footer">
+                        <input type="text" class="chat-input" placeholder="Напиши Лидочке..." aria-label="Сообщение">
+                        <button class="btn btn-primary btn-send show-toast" data-msg="Сообщение отправлено!" aria-label="Отправить">➔</button>
+                    </div>
+                </div>
+
+                <div class="prompt-cards">
+                    <h3 class="section-title"><i data-lucide="file-text"></i> Сформированные промпты</h3>
+                    <div class="prompt-card panel">
+                        <h4>Знакомство</h4>
+                        <textarea class="prompt-textarea" readonly>Компания занимается внедрением ИИ и автоматизацией бизнес-процессов. Основные услуги: ИИ-ассистенты для B2B, настройка автоворонок.</textarea>
+                        <div class="prompt-card-actions">
+                            <button class="btn btn-outline btn-sm prompt-edit-btn"><i data-lucide="pencil"></i> Редактировать вручную</button>
+                            <button class="btn btn-outline btn-sm prompt-ai-btn" data-improved="Компания специализируется на внедрении искусственного интеллекта и комплексной автоматизации бизнес-процессов для B2B-сегмента. Ключевые услуги: разработка и интеграция ИИ-ассистентов, проектирование автоворонок продаж, оптимизация клиентского пути с помощью ML-моделей."><i data-lucide="sparkles"></i> Улучшить с ИИ</button>
+                        </div>
+                    </div>
+                    <div class="prompt-card panel">
+                        <h4>Целевая аудитория</h4>
+                        <textarea class="prompt-textarea" readonly>Идеальный клиент: средний B2B, инфобизнес, digital-агентства. Размер компании: 10-200 человек. Боль: ручные процессы, нет системы лидогенерации.</textarea>
+                        <div class="prompt-card-actions">
+                            <button class="btn btn-outline btn-sm prompt-edit-btn"><i data-lucide="pencil"></i> Редактировать вручную</button>
+                            <button class="btn btn-outline btn-sm prompt-ai-btn" data-improved="Целевой портрет клиента: компании среднего B2B-сегмента (10-200 сотрудников), инфобизнес и digital-агентства. Основная боль: избыточные ручные процессы, отсутствие автоматизированной системы лидогенерации и квалификации лидов. Бюджет на решение: 50-500 тыс. руб/мес."><i data-lucide="sparkles"></i> Улучшить с ИИ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Источники лидов ═══ -->
+        <div id="discovery" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="header-title">Источники лидов</h1>
+                    <p class="header-subtitle" style="margin-bottom:0">Автоматический или ручной поиск целевых запросов в чатах и сообществах.</p>
+                </div>
+                <div class="flex gap-2" id="expert-actions" style="display:none;">
+                    <button class="btn btn-ghost" id="expert-reset-btn"><i class="fa-solid fa-rotate-left"></i> Сбросить</button>
+                    <button class="btn btn-primary" id="expert-save-btn"><i class="fa-solid fa-floppy-disk"></i> Сохранить</button>
+                </div>
+            </div>
+
+            <div id="discovery-main">
+                <div class="toggle-group" id="funnel-mode">
+                    <button class="toggle-btn active" data-mode="auto"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Генерация</button>
+                    <button class="toggle-btn" data-mode="expert"><i class="fa-solid fa-sliders"></i> Ручной режим</button>
+                </div>
+
+                <div id="expert-view">
+                    <div class="platform-tabs" role="tablist" aria-label="Платформы">
+                        <button class="p-tab active" role="tab" aria-selected="true">Telegram</button>
+                        <button class="p-tab" role="tab" aria-selected="false">VKontakte</button>
+                        <button class="p-tab" role="tab" aria-selected="false">Instagram</button>
+                        <button class="p-tab" role="tab" aria-selected="false">Threads</button>
+                        <button class="p-tab" role="tab" aria-selected="false">МАХ</button>
+                        <button class="p-tab" role="tab" aria-selected="false">Одноклассники</button>
+                    </div>
+
+                    <div id="platform-placeholder" class="platform-placeholder">Подключите платформу, чтобы видеть результаты.</div>
+
+                    <div id="discovery-content" class="discovery-grid">
+                        <div class="left-col">
+                            <div class="panel">
+                                <h3 class="section-title"><i data-lucide="bot"></i> AI Deep Research</h3>
+                                <div class="ai-suggestion">
+                                    <strong>Лидочка:</strong> Для Telegram я предлагаю искать по ключам: «нужна crm», «подскажите интегратора», «как внедрить ии». Уточним детали?
+                                </div>
+                                <input type="text" placeholder="Уточни запрос...">
+                                <div class="ai-btn-row">
+                                    <button class="btn btn-outline btn-sm show-toast" data-msg="Открыто окно смены промта">Изменить запрос</button>
+                                    <button class="btn btn-outline btn-sm show-toast" data-msg="Настройка частоты">Частота проверки</button>
+                                </div>
+                            </div>
+
+                            <details class="advanced-settings">
+                                <summary><i data-lucide="chevron-right"></i> Расширенные настройки</summary>
+                                <div class="panel">
+                                    <h3 class="section-title">Ручные фильтры</h3>
+                                    <div class="form-group">
+                                        <label>Исключить по словам</label>
+                                        <span class="field-hint">Слова, при наличии которых сообщение будет проигнорировано</span>
+                                        <input type="text" placeholder="риелтор, агентство, посуточно">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Фильтры по ключевым фразам</label>
+                                        <span class="field-hint">Фразы, по которым система определяет потенциальных клиентов</span>
+                                        <textarea rows="2" placeholder="ищу, подскажите, нужен"></textarea>
+                                    </div>
+                                    <button class="btn btn-primary show-toast" data-msg="Словарные правила обновлены!">Сохранить правила</button>
+                                </div>
+                                <div class="panel">
+                                    <h3 class="section-title">Сценарии автоответов</h3>
+                                    <div class="form-group">
+                                        <label>Шаблон первого сообщения</label>
+                                        <span class="field-hint">Используйте {Name} и {Channel_Name} для подстановки данных лида</span>
+                                        <textarea rows="3" placeholder="Здравствуйте, {Name}! Увидел ваш запрос в {Channel_Name}. Мы можем помочь с..."></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Задержка перед отправкой</label>
+                                        <span class="field-hint">Более естественная задержка снижает вероятность бана</span>
+                                        <select>
+                                            <option>Сразу</option>
+                                            <option>Через 5 минут</option>
+                                            <option>Имитация печати (2-7 мин)</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-primary show-toast" data-msg="Сценарий активирован!">Активировать автоответ</button>
+                                </div>
+                            </details>
+                        </div>
+
+                        <div class="right-col">
+                            <h3 class="section-title">Найденные сообщества (Топ по конверсии)</h3>
+
+                            <div class="result-item rank-high">
+                                <div>
+                                    <h4 class="result-title">B2B Sales &amp; Marketing (Telegram)</h4>
+                                    <p class="result-meta">15к участников · Высокая активность</p>
+                                    <span class="lead-badge high">142 переданных лида</span>
+                                </div>
+                                <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                            </div>
+
+                            <div class="result-item rank-high">
+                                <div>
+                                    <h4 class="result-title">Клуб Внедренцев CRM</h4>
+                                    <p class="result-meta">3к участников · Узкая ниша</p>
+                                    <span class="lead-badge high">98 переданных лидов</span>
+                                </div>
+                                <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                            </div>
+
+                            <div class="result-item rank-mid">
+                                <div>
+                                    <h4 class="result-title">Предприниматели Москвы</h4>
+                                    <p class="result-meta">40к участников · Широкий профиль</p>
+                                    <span class="lead-badge mid">24 переданных лида</span>
+                                </div>
+                                <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                            </div>
+
+                            <div class="result-item rank-low">
+                                <div>
+                                    <h4 class="result-title">Флудилка стартапов</h4>
+                                    <p class="result-meta">1.5к участников · Много спама</p>
+                                    <span class="lead-badge low">2 переданных лида</span>
+                                </div>
+                                <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="auto-view" class="auto-view-box">
+                    <div class="auto-view-icon"><i data-lucide="sparkles"></i></div>
+                    <h3>Магия AI активирована</h3>
+                    <p class="auto-view-desc">Промт и список чатов сформированы автоматически на основе диалога в разделе «О проекте».</p>
+                    <div class="prompt-container">
+                        <div class="prompt-header">
+                            <h4>Сгенерированный промт</h4>
+                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('ai-explain').classList.toggle('show')">
+                                <i data-lucide="eye"></i> Почему ИИ выбрал это?
+                            </button>
+                        </div>
+                        <div class="monospace-block">
+                            ("внедрение" OR "ии-ассистент" OR "автоматизация") AND ("отдел продаж" OR "воронка") AND (b2b OR "агентство")
+                        </div>
+                        <div id="ai-explain" class="ai-explain-box">
+                            <div class="explain-title">Логика Лидочки:</div>
+                            &bull; Добавлены слова <strong>«автоматизация»</strong> и <strong>«ии-ассистент»</strong>, так как вы указали это как услугу.<br>
+                            &bull; Использован фильтр <strong>(b2b OR «агентство»)</strong> для отсечения нерелевантных запросов.<br>
+                            &bull; Исключены минус-слова <em>«работа», «вакансия»</em> для защиты от спама.
+                        </div>
+                    </div>
+
+                    <h3 class="section-title auto-communities-title"><i data-lucide="radio"></i> Сообщества (выбраны ИИ автоматически)</h3>
+                    <div class="auto-communities">
+                        <div class="result-item rank-high">
+                            <div>
+                                <h4 class="result-title">B2B Sales &amp; Marketing (Telegram)</h4>
+                                <p class="result-meta">15к участников · Высокая активность</p>
+                                <span class="lead-badge high">Выбрано ИИ</span>
+                            </div>
+                            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="result-item rank-high">
+                            <div>
+                                <h4 class="result-title">Клуб Внедренцев CRM</h4>
+                                <p class="result-meta">3к участников · Узкая ниша</p>
+                                <span class="lead-badge high">Выбрано ИИ</span>
+                            </div>
+                            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="result-item rank-mid">
+                            <div>
+                                <h4 class="result-title">Предприниматели Москвы</h4>
+                                <p class="result-meta">40к участников · Широкий профиль</p>
+                                <span class="lead-badge mid">Выбрано ИИ</span>
+                            </div>
+                            <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="result-item rank-low">
+                            <div>
+                                <h4 class="result-title">Флудилка стартапов</h4>
+                                <p class="result-meta">1.5к участников · Много спама</p>
+                                <span class="lead-badge low">Выбрано ИИ</span>
+                            </div>
+                            <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="expert-inline-view" style="display:none;">
+                    <div class="settings-layout-form">
+                        <div class="form-card">
+                            <h2 class="mb-6"><i class="fa-solid fa-building text-primary"></i> Контекст компании</h2>
+
+                            <div class="form-group">
+                                <label class="form-label">О чём ваша компания?</label>
+                                <textarea class="form-control expert-field" placeholder="Мы — лаборатория инноваций Oboyma Lab..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Ключевые услуги</label>
+                                <textarea class="form-control expert-field" rows="3" placeholder="- Настройка n8n&#10;- Внедрение AI-ассистентов"></textarea>
+                            </div>
+
+                            <div style="height: 1px; background: var(--border-color); margin: 32px 0;"></div>
+
+                            <h2 class="mb-6"><i class="fa-solid fa-filter text-primary"></i> Фильтрация запросов</h2>
+                            <div class="form-group">
+                                <label class="form-label" style="color: var(--success)">Позитивный фильтр (Кого ищем?)</label>
+                                <textarea class="form-control expert-field" rows="4" style="border-color: #d1fae5;" placeholder="Ищем людей, которые хотят внедрить ИИ, автоматизировать продажи, подключить n8n..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="color: var(--danger)">Негативный фильтр (Что игнорируем?)</label>
+                                <textarea class="form-control expert-field" rows="4" style="border-color: #fee2e2;" placeholder="- Ищут бесплатные курсы&#10;- Рекламные посты&#10;- Ищут работу / вакансии"></textarea>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="info-panel">
+                                <h3><i class="fa-solid fa-lightbulb text-warning"></i> Совет по настройке</h3>
+                                <p class="mb-4" style="font-size:14px;">Чем точнее описан негативный фильтр, тем чище Входящие.</p>
+                                <div style="padding-top: 16px; border-top: 1px solid #bfdbfe;">
+                                    <p class="text-bold text-sm mb-2">Не хотите вручную?</p>
+                                    <button class="btn btn-outline w-full" style="background: white;" id="switch-to-ai-btn">
+                                        <i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Поручить ИИ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ═══ Каналы и источники ═══ -->
+        <div id="channels" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="header-title">Каналы и источники</h1>
+                    <p class="header-subtitle" style="margin-bottom:0">Настройте, где именно система должна искать целевые запросы для этого проекта.</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <span class="badge-inline badge-blue" id="channel-total-badge" style="font-size: 14px; padding: 6px 14px;">—</span>
+                    <span class="text-sm" style="color: var(--text-muted);">Лимит тарифа: до 200 каналов</span>
+                </div>
+            </div>
+
+            <div class="channel-manager panel" id="channel-manager">
+                <div class="channel-toolbar">
+                    <div class="search-wrapper channel-toolbar-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" class="form-control" id="connected-channel-search" placeholder="Поиск по названию канала..." autocomplete="off" aria-label="Поиск каналов">
+                    </div>
+                    <label class="channel-toolbar-label">
+                        <span class="sr-only">Платформа</span>
+                        <select class="form-control channel-toolbar-select" id="channel-filter-platform" aria-label="Фильтр по платформе">
+                            <option value="all">Все платформы</option>
+                            <option value="telegram">Telegram</option>
+                            <option value="vk">VKontakte</option>
+                        </select>
+                    </label>
+                    <label class="channel-toolbar-label">
+                        <span class="sr-only">Статус</span>
+                        <select class="form-control channel-toolbar-select" id="channel-filter-status" aria-label="Фильтр по статусу">
+                            <option value="all">Все статусы</option>
+                            <option value="active">Только активные</option>
+                            <option value="paused">Только на паузе</option>
+                        </select>
+                    </label>
+                    <label class="channel-toolbar-label">
+                        <span class="sr-only">Сортировка</span>
+                        <select class="form-control channel-toolbar-select" id="channel-sort" aria-label="Сортировка">
+                            <option value="name-asc">По названию (А–Я)</option>
+                            <option value="name-desc">По названию (Я–А)</option>
+                            <option value="members-desc">По размеру аудитории</option>
+                            <option value="activity-desc">По активности (сообщ./день)</option>
+                            <option value="added-desc">Сначала новые</option>
+                            <option value="added-asc">Сначала старые</option>
+                        </select>
+                    </label>
+                    <label class="channel-toolbar-label">
+                        <span class="sr-only">На странице</span>
+                        <select class="form-control channel-toolbar-select" id="channel-page-size" aria-label="Каналов на странице">
+                            <option value="25" selected>25 на странице</option>
+                            <option value="50">50 на странице</option>
+                            <option value="100">100 на странице</option>
+                        </select>
+                    </label>
+                    <div class="toggle-group channel-view-toggle" id="channel-view-toggle" role="group" aria-label="Вид списка">
+                        <button type="button" class="toggle-btn active" data-channel-view="cards" title="Карточки">Карточки</button>
+                        <button type="button" class="toggle-btn" data-channel-view="compact" title="Компактная таблица">Таблица</button>
+                    </div>
+                </div>
+                <div class="channel-list-summary" id="channel-list-summary" aria-live="polite"></div>
+                <div class="channel-list-scroll" id="channel-list-mount"></div>
+                <nav class="channel-pagination" id="channel-pagination" aria-label="Страницы списка каналов"></nav>
+            </div>
+        </div>
+
+        <!-- ═══ Inbox ═══ -->
+        <div id="inbox" class="tab-content">
+            <div class="section-header">
+                <div>
+                    <h1 class="header-title">Inbox</h1>
+                    <p class="header-subtitle">Управление диалогами. Выберите удобный вид отображения.</p>
+                </div>
+                <div class="toggle-group" id="inbox-view-toggle">
+                    <button class="toggle-btn active" data-view="kanban">Канбан-доска</button>
+                    <button class="toggle-btn" data-view="classic">Классический чат</button>
+                </div>
+            </div>
+
+            <div id="kanban-view" class="kanban-board">
+                <div class="kanban-col" data-col="new">
+                    <h3>Новый запрос <span class="col-count">2</span></h3>
+                    <div class="kanban-card" draggable="true">
+                        <button class="lead-link" aria-label="Открыть профиль"><i data-lucide="external-link"></i></button>
+                        <div class="card-tags">
+                            <span class="c-tag c-tag--hot"><i data-lucide="flame"></i> Горячий</span>
+                            <span class="c-tag c-tag--telegram">Telegram</span>
+                        </div>
+                        <div class="card-title">Kirill Beginin</div>
+                        <div class="card-text">Друзья, а кто у нас здесь занимается автоматизацией и ИИ? Есть клиенты...</div>
+                        <div class="card-footer">
+                            <span class="card-timestamp">2 мин назад</span>
+                            <div class="team-avatars"><div class="t-avatar t-avatar--unassigned">?</div></div>
+                        </div>
+                    </div>
+                    <div class="kanban-card" draggable="true">
+                        <button class="lead-link" aria-label="Открыть профиль"><i data-lucide="external-link"></i></button>
+                        <div class="card-tags">
+                            <span class="c-tag c-tag--vk">VKontakte</span>
+                        </div>
+                        <div class="card-title">Аренда СПБ (Сообщество)</div>
+                        <div class="card-text">Подскажите сервис для рассылок, чтобы подключить к нашей базе...</div>
+                        <div class="card-footer">
+                            <span class="card-timestamp">15 мин назад</span>
+                            <div class="team-avatars"><div class="t-avatar t-avatar--unassigned">?</div></div>
+                        </div>
+                    </div>
+                    <div class="empty-col">Нет лидов на этом этапе</div>
+                </div>
+
+                <div class="kanban-col" data-col="progress">
+                    <h3>Взят в работу <span class="col-count">1</span></h3>
+                    <div class="kanban-card kanban-card--in-progress" draggable="true">
+                        <button class="lead-link" aria-label="Открыть профиль"><i data-lucide="external-link"></i></button>
+                        <div class="card-tags">
+                            <span class="c-tag c-tag--instagram">Instagram</span>
+                        </div>
+                        <div class="card-title">Иван Иванов</div>
+                        <div class="card-text">Сколько будет стоить внедрить ИИ-ассистента как у вас в рилс?</div>
+                        <div class="card-footer">
+                            <div class="card-typing"><i data-lucide="message-circle"></i> Маша печатает...</div>
+                            <div class="team-avatars"><div class="t-avatar t-avatar--pink" title="В работе у Маши">М</div></div>
+                        </div>
+                    </div>
+                    <div class="empty-col">Нет лидов на этом этапе</div>
+                </div>
+
+                <div class="kanban-col" data-col="offer">
+                    <h3>Отправлен оффер <span class="col-count">1</span></h3>
+                    <div class="kanban-card" draggable="true">
+                        <button class="lead-link" aria-label="Открыть профиль"><i data-lucide="external-link"></i></button>
+                        <div class="card-tags">
+                            <span class="c-tag c-tag--telegram">Telegram</span>
+                        </div>
+                        <div class="card-title">Елена Маркетолог</div>
+                        <div class="card-text">Презентация получена, обсуждаем с руководителем смету на интеграцию n8n.</div>
+                        <div class="card-footer">
+                            <span class="card-timestamp">Вчера</span>
+                            <div class="team-avatars"><div class="t-avatar t-avatar--blue" title="Ваш лид">А</div></div>
+                        </div>
+                    </div>
+                    <div class="empty-col">Нет лидов на этом этапе</div>
+                </div>
+
+                <div class="kanban-col" data-col="done">
+                    <h3>Передан в CRM <span class="col-count">1</span></h3>
+                    <div class="kanban-card kanban-card--done" draggable="true">
+                        <button class="lead-link" aria-label="Открыть профиль"><i data-lucide="external-link"></i></button>
+                        <div class="card-tags">
+                            <span class="c-tag c-tag--success"><i data-lucide="check"></i> Успех</span>
+                        </div>
+                        <div class="card-title">ООО Вектор</div>
+                        <div class="card-text">Сделка перенесена в amoCRM. Этап: Договор.</div>
+                        <div class="card-footer">
+                            <span class="card-timestamp card-timestamp--success">amoCRM ID: #4592</span>
+                        </div>
+                    </div>
+                    <div class="empty-col">Нет лидов на этом этапе</div>
+                </div>
+            </div>
+
+            <div id="classic-view" class="classic-inbox">
+                <div class="ci-list">
+                    <button class="ci-item active">
+                        <div class="ci-name">Kirill Beginin <span class="ci-platform ci-platform--tg">(Telegram)</span></div>
+                        <div class="ci-preview">Друзья, а кто у нас здесь занимается...</div>
+                    </button>
+                    <button class="ci-item">
+                        <div class="ci-name">Иван Иванов <span class="ci-platform ci-platform--insta">(Insta)</span></div>
+                        <div class="ci-preview">Сколько будет стоить внедрить ИИ...</div>
+                    </button>
+                    <button class="ci-item">
+                        <div class="ci-name">Аренда СПБ <span class="ci-platform ci-platform--vk">(VK)</span></div>
+                        <div class="ci-preview">Подскажите сервис для рассылок...</div>
+                    </button>
+                </div>
+                <div class="ci-chat">
+                    <div class="ci-chat-header">Чат: Kirill Beginin</div>
+                    <div class="ci-chat-body">
+                        <div class="msg msg-ai">
+                            <strong>Kirill:</strong> Друзья, а кто у нас здесь занимается автоматизацией и ИИ? Есть клиенты на постоянной основе которых нужно пристроить как на сдать так и на снять.
+                        </div>
+                    </div>
+                    <div class="ci-chat-footer">
+                        <textarea rows="3" placeholder="Написать ответ Кириллу..."></textarea>
+                        <button class="btn btn-primary show-toast" data-msg="Сообщение отправлено!">Отправить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Аналитика ═══ -->
+        <div id="analytics" class="tab-content">
+            <div class="section-header">
+                <h1 class="header-title">Дашборд аналитики</h1>
+                <div class="toggle-group" id="analytics-toggle">
+                    <button class="toggle-btn active">Ежедневная</button>
+                    <button class="toggle-btn">По подписке</button>
+                </div>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label"><i data-lucide="users"></i> Всего Лидов</div>
+                    <div class="metric-value">1,245</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><i data-lucide="trending-up"></i> Активные диалоги</div>
+                    <div class="metric-value">84</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><i data-lucide="message-circle"></i> Отправлено сообщений</div>
+                    <div class="metric-value">342</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label"><i data-lucide="target"></i> Конверсии</div>
+                    <div class="metric-value">8.5%</div>
+                </div>
+            </div>
+            <div class="analytics-grid">
+                <div class="panel">
+                    <h3 class="section-title">Активность (Лиды)</h3>
+                    <div class="chart-container">
+                        <div class="bar-group"><div class="bar" style="height:35%"></div><div class="bar-label">Пн</div></div>
+                        <div class="bar-group"><div class="bar" style="height:85%"></div><div class="bar-label">Вт</div></div>
+                        <div class="bar-group"><div class="bar" style="height:60%"></div><div class="bar-label">Ср</div></div>
+                        <div class="bar-group"><div class="bar" style="height:40%"></div><div class="bar-label">Чт</div></div>
+                        <div class="bar-group"><div class="bar" style="height:90%"></div><div class="bar-label">Пт</div></div>
+                        <div class="bar-group"><div class="bar bar--inactive" style="height:15%"></div><div class="bar-label">Сб</div></div>
+                        <div class="bar-group"><div class="bar bar--inactive" style="height:10%"></div><div class="bar-label">Вс</div></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3 class="section-title">Логи системы</h3>
+                    <div class="log-scroll">
+                        <div class="log-item"><div class="log-icon"><i data-lucide="bot"></i></div> Найден новый лид (VK)</div>
+                        <div class="log-item"><div class="log-icon"><i data-lucide="mail"></i></div> Автоответ отправлен Кириллу</div>
+                        <div class="log-item"><div class="log-icon log-icon--success"><i data-lucide="check"></i></div> Лид передан в amoCRM</div>
+                        <div class="log-item"><div class="log-icon"><i data-lucide="bot"></i></div> Найден новый лид (Telegram)</div>
+                        <div class="log-item"><div class="log-icon"><i data-lucide="settings"></i></div> Обновлен промт поиска</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Интеграции Workspace ═══ -->
+        <div id="integrations" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="header-title">Интеграции Workspace</h1>
+                    <p class="header-subtitle" style="margin-bottom:0">Подключите Oboyma Leads к вашей ИТ-инфраструктуре.</p>
+                </div>
+            </div>
+
+            <div class="integrations-grid">
+                <div class="integration-card" style="border-color: var(--primary-blue); box-shadow: 0 0 0 1px var(--primary-blue);">
+                    <div class="integration-header">
+                        <div class="integration-icon icon-n8n"><i class="fa-solid fa-code-branch"></i></div>
+                        <span class="badge-inline badge-success">Подключено</span>
+                    </div>
+                    <h3 class="mb-2">n8n (Workflow Automation)</h3>
+                    <p class="integration-desc">Основной шлюз. Настроен вебхук для отправки лидов. Активно 2 сценария маршрутизации.</p>
+                    <div class="integration-footer">
+                        <span class="text-sm" style="color: var(--text-muted);">Пинг: 2 мин назад</span>
+                        <button class="btn btn-outline text-sm" style="padding: 6px 12px;" onclick="showToast('Открытие настроек n8n')">Настроить</button>
+                    </div>
+                </div>
+
+                <div class="integration-card">
+                    <div class="integration-header">
+                        <div class="integration-icon icon-amocrm"><i class="fa-solid fa-address-book"></i></div>
+                        <span class="badge-inline badge-gray">Доступно</span>
+                    </div>
+                    <h3 class="mb-2">amoCRM / Битрикс24</h3>
+                    <p class="integration-desc">Прямая интеграция для создания сделок минуя n8n.</p>
+                    <div class="integration-footer">
+                        <button class="btn btn-primary text-sm w-full" onclick="showToast('Подключение CRM...')">Подключить CRM</button>
+                    </div>
+                </div>
+
+                <div class="integration-card">
+                    <div class="integration-header">
+                        <div class="flex gap-2">
+                            <div class="integration-icon icon-buildin"><i class="fa-solid fa-layer-group"></i></div>
+                            <div class="integration-icon icon-younote"><i class="fa-solid fa-book-open"></i></div>
+                        </div>
+                        <span class="badge-inline badge-blue">База знаний</span>
+                    </div>
+                    <h3 class="mb-2">Buildin.ai & YouNote</h3>
+                    <p class="integration-desc">Подключите базы знаний для обучения ИИ-ассистента.</p>
+                    <div class="integration-footer">
+                        <button class="btn btn-outline text-sm w-full" onclick="showToast('Синхронизация баз данных...')">Синхронизировать БД</button>
+                    </div>
+                </div>
+
+                <div class="integration-card">
+                    <div class="integration-header">
+                        <div class="integration-icon icon-getcourse"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <span class="badge-inline badge-warning">Внимание</span>
+                    </div>
+                    <h3 class="mb-2">GetCourse</h3>
+                    <p class="integration-desc">Отслеживайте оплаты. <strong>Внимание:</strong> комиссия 14% на процессинг. Нужна оптимизация.</p>
+                    <div class="integration-footer">
+                        <button class="btn btn-outline text-sm w-full" onclick="showToast('Анализ эквайринга...')">Анализ эквайринга</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Биллинг ═══ -->
+        <div id="billing" class="tab-content">
+            <h1 class="header-title">Управление подпиской</h1>
+            <p class="header-subtitle">Выберите тарифный план, который лучше всего подходит для ваших задач лидогенерации.</p>
+
+            <div class="billing-status panel">
+                <div class="billing-status-row">
+                    <div class="billing-status-item">
+                        <span class="billing-status-label">Текущий тариф</span>
+                        <span class="billing-status-value">Pro</span>
+                    </div>
+                    <div class="billing-status-item">
+                        <span class="billing-status-label">Статус</span>
+                        <span class="billing-status-value"><span class="status-badge status-badge--active">Активна</span></span>
+                    </div>
+                    <div class="billing-status-item">
+                        <span class="billing-status-label">Следующее списание</span>
+                        <span class="billing-status-value">12 мая 2026</span>
+                    </div>
+                    <div class="billing-status-item">
+                        <span class="billing-status-label">Способ оплаты</span>
+                        <span class="billing-status-value">Visa •••• 4829</span>
+                    </div>
+                </div>
+                <div class="billing-usage">
+                    <div class="billing-usage-item">
+                        <div class="billing-usage-header">
+                            <span>Лиды</span>
+                            <span class="billing-usage-count">1,245 / 3,000</span>
+                        </div>
+                        <div class="billing-progress-bar"><div class="billing-progress-fill" style="width:41.5%"></div></div>
+                    </div>
+                    <div class="billing-usage-item">
+                        <div class="billing-usage-header">
+                            <span>Автоответы</span>
+                            <span class="billing-usage-count">342 / ∞</span>
+                        </div>
+                        <div class="billing-progress-bar"><div class="billing-progress-fill billing-progress-fill--success" style="width:100%"></div></div>
+                    </div>
+                    <div class="billing-usage-item">
+                        <div class="billing-usage-header">
+                            <span>Каналы</span>
+                            <span class="billing-usage-count">1 / 6</span>
+                        </div>
+                        <div class="billing-progress-bar"><div class="billing-progress-fill" style="width:16.6%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title mt-lg"><i data-lucide="layers"></i> Тарифные планы</h3>
+            <div class="billing-grid">
+                <div class="plan-card">
+                    <h3>Start</h3>
+                    <div class="plan-price">₽2,900<span>/мес</span></div>
+                    <ul class="plan-features">
+                        <li>✓ До 500 лидов в месяц</li>
+                        <li>✓ 2 канала поиска (TG, VK)</li>
+                        <li>✓ Базовые автоответы</li>
+                        <li>✕ Интеграция с CRM</li>
+                    </ul>
+                    <button class="btn btn-outline btn-block show-toast" data-msg="Переход на оплату тарифа Start">Перейти на Start</button>
+                </div>
+                <div class="plan-card active-plan">
+                    <div class="badge">Текущий тариф</div>
+                    <h3>Pro</h3>
+                    <div class="plan-price">₽5,900<span>/мес</span></div>
+                    <ul class="plan-features">
+                        <li>✓ До 3000 лидов в месяц</li>
+                        <li>✓ Все каналы поиска</li>
+                        <li>✓ AI-Автоответы (Lidochka)</li>
+                        <li>✓ Интеграция с amoCRM/Bitrix</li>
+                    </ul>
+                    <button class="btn btn-primary btn-block show-toast" data-msg="Открыто меню управления подпиской">Управлять тарифом</button>
+                </div>
+                <div class="plan-card">
+                    <h3>Agency</h3>
+                    <div class="plan-price">₽15,000<span>/мес</span></div>
+                    <ul class="plan-features">
+                        <li>✓ Безлимитные лиды</li>
+                        <li>✓ Кастомные парсеры</li>
+                        <li>✓ White-label решение</li>
+                        <li>✓ Выделенный менеджер</li>
+                    </ul>
+                    <button class="btn btn-outline btn-block show-toast" data-msg="Запрос отправлен менеджеру">Связаться с нами</button>
+                </div>
+            </div>
+
+            <div class="panel mt-lg" style="padding: 0; overflow: hidden;">
+                <div class="p-6" style="border-bottom: 1px solid var(--border-color);">
+                    <h3 class="section-title m-0">История транзакций</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Описание</th>
+                            <th>Сумма</th>
+                            <th>Статус</th>
+                            <th>Чек</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>15 Апр 2026</td>
+                            <td>Продление тарифа AI Pro (Ежемесячно)</td>
+                            <td class="text-bold">7 900 ₽</td>
+                            <td><span class="badge-inline badge-success">Успешно</span></td>
+                            <td><a href="#" style="color:var(--primary-blue); font-size:12px;">PDF</a></td>
+                        </tr>
+                        <tr>
+                            <td>15 Мар 2026</td>
+                            <td>Продление тарифа AI Pro (Ежемесячно)</td>
+                            <td class="text-bold">7 900 ₽</td>
+                            <td><span class="badge-inline badge-success">Успешно</span></td>
+                            <td><a href="#" style="color:var(--primary-blue); font-size:12px;">PDF</a></td>
+                        </tr>
+                        <tr>
+                            <td>15 Фев 2026</td>
+                            <td>Переход на тариф AI Pro</td>
+                            <td class="text-bold">7 900 ₽</td>
+                            <td><span class="badge-inline badge-success">Успешно</span></td>
+                            <td><a href="#" style="color:var(--primary-blue); font-size:12px;">PDF</a></td>
+                        </tr>
+                        <tr>
+                            <td>10 Янв 2026</td>
+                            <td>Оплата тарифа Starter</td>
+                            <td class="text-bold">2 900 ₽</td>
+                            <td><span class="badge-inline badge-success">Успешно</span></td>
+                            <td><a href="#" style="color:var(--primary-blue); font-size:12px;">PDF</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ Команда ═══ -->
+        <div id="team" class="tab-content">
+            <h1 class="header-title">Команда</h1>
+            <p class="header-subtitle">Управление доступом пользователей к рабочему пространству.</p>
+            <button class="btn btn-primary team-invite-btn show-toast" data-msg="Приглашение отправлено!"><i data-lucide="user-plus"></i> Пригласить участника</button>
+
+            <div class="team-list">
+                <div class="team-member panel">
+                    <div class="avatar">А</div>
+                    <div class="team-member-info">
+                        <div class="team-member-name">Арина <span class="status-badge status-badge--you">(вы)</span></div>
+                        <div class="team-member-email">admin@oboyma.lab</div>
+                    </div>
+                    <select class="team-role-select" disabled>
+                        <option selected>Владелец</option>
+                    </select>
+                    <span class="status-badge status-badge--active">Активен</span>
+                </div>
+                <div class="team-member panel">
+                    <div class="avatar avatar--pink">М</div>
+                    <div class="team-member-info">
+                        <div class="team-member-name">Маша Иванова</div>
+                        <div class="team-member-email">masha@oboyma.lab</div>
+                    </div>
+                    <select class="team-role-select">
+                        <option>Владелец</option>
+                        <option>Администратор</option>
+                        <option selected>Менеджер</option>
+                        <option>Наблюдатель</option>
+                    </select>
+                    <span class="status-badge status-badge--active">Активен</span>
+                    <button class="btn btn-ghost btn-sm team-remove-btn show-toast" data-msg="Пользователь удалён из workspace"><i data-lucide="trash-2"></i> Удалить</button>
+                </div>
+                <div class="team-member panel">
+                    <div class="avatar avatar--gray">Д</div>
+                    <div class="team-member-info">
+                        <div class="team-member-name">Дмитрий Волков</div>
+                        <div class="team-member-email">dmitry@oboyma.lab</div>
+                    </div>
+                    <select class="team-role-select">
+                        <option>Владелец</option>
+                        <option>Администратор</option>
+                        <option>Менеджер</option>
+                        <option selected>Наблюдатель</option>
+                    </select>
+                    <span class="status-badge status-badge--invited">Приглашён</span>
+                    <button class="btn btn-ghost btn-sm team-remove-btn show-toast" data-msg="Пользователь удалён из workspace"><i data-lucide="trash-2"></i> Удалить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Настройки ═══ -->
+        <div id="settings" class="tab-content">
+            <h1 class="header-title">Настройки пользователя</h1>
+            <p class="header-subtitle">Персональные данные и параметры вашего профиля.</p>
+            <div class="panel panel-narrow">
+                <form id="settings-form">
+                    <div class="form-group">
+                        <label for="settings-name">Имя пользователя</label>
+                        <input type="text" id="settings-name" name="name" value="Арина" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-email">Личный Email</label>
+                        <input type="email" id="settings-email" name="email" value="arina@oboyma.lab" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-role">Роль в workspace</label>
+                        <input type="text" id="settings-role" name="role" value="Владелец" readonly>
+                    </div>
+                    <button type="button" id="settings-save" class="btn btn-primary show-toast" data-msg="Настройки пользователя успешно сохранены!" disabled>Сохранить изменения</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
