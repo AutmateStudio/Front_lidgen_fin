@@ -34,6 +34,85 @@
         </div>
     </div>
 
+    <!-- Channel Detail Modal -->
+    <div id="channel-detail-overlay" class="modal-overlay channel-detail-overlay" role="dialog" aria-modal="true" aria-label="Статистика канала">
+        <div class="channel-detail-modal">
+            <div class="channel-detail-header">
+                <div class="channel-detail-title-group">
+                    <div id="cd-icon" class="icon-box icon-tg"><i class="fa-brands fa-telegram"></i></div>
+                    <div>
+                        <div class="channel-detail-name" id="cd-name">—</div>
+                        <div class="channel-detail-platform" id="cd-platform">Telegram</div>
+                    </div>
+                </div>
+                <div class="channel-detail-header-actions">
+                    <span class="badge-inline" id="cd-status-badge">—</span>
+                    <button class="btn btn-ghost btn-icon" id="cd-close" aria-label="Закрыть"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+
+            <div class="channel-detail-body">
+                <div class="cd-stats-grid">
+                    <div class="cd-stat">
+                        <div class="cd-stat-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                        <div class="cd-stat-value" id="cd-days">—</div>
+                        <div class="cd-stat-label">Дней в поиске</div>
+                    </div>
+                    <div class="cd-stat">
+                        <div class="cd-stat-icon" style="background:#e0e7ff; color:#4f46e5;"><i class="fa-solid fa-envelope-open-text"></i></div>
+                        <div class="cd-stat-value" id="cd-messages">—</div>
+                        <div class="cd-stat-label">Обработано сообщений</div>
+                    </div>
+                    <div class="cd-stat">
+                        <div class="cd-stat-icon" style="background:#fef3c7; color:#f59e0b;"><i class="fa-solid fa-user-check"></i></div>
+                        <div class="cd-stat-value" id="cd-leads">—</div>
+                        <div class="cd-stat-label">Отобрано лидов</div>
+                    </div>
+                    <div class="cd-stat">
+                        <div class="cd-stat-icon" id="cd-conv-icon"><i class="fa-solid fa-percent"></i></div>
+                        <div class="cd-stat-value" id="cd-conversion">—</div>
+                        <div class="cd-stat-label">Конверсия</div>
+                    </div>
+                </div>
+
+                <div class="cd-conversion-bar-section">
+                    <div class="cd-conv-header">
+                        <span class="cd-conv-title">Эффективность конверсии</span>
+                        <span class="cd-conv-value-label" id="cd-conv-label">—</span>
+                    </div>
+                    <div class="cd-conv-bar">
+                        <div class="cd-conv-fill" id="cd-conv-fill"></div>
+                    </div>
+                    <div class="cd-conv-legend">
+                        <span><span class="cd-legend-dot cd-legend-dot--red"></span> &lt;1% — низкая</span>
+                        <span><span class="cd-legend-dot cd-legend-dot--yellow"></span> 1–3% — средняя</span>
+                        <span><span class="cd-legend-dot cd-legend-dot--green"></span> &gt;3% — высокая</span>
+                    </div>
+                </div>
+
+                <div class="cd-info-row">
+                    <div class="cd-info-item">
+                        <span class="cd-info-label">Аудитория</span>
+                        <span class="cd-info-value" id="cd-members">—</span>
+                    </div>
+                    <div class="cd-info-item">
+                        <span class="cd-info-label">Сообщений в день</span>
+                        <span class="cd-info-value" id="cd-msgperday">—</span>
+                    </div>
+                    <div class="cd-info-item">
+                        <span class="cd-info-label">Подключён</span>
+                        <span class="cd-info-value" id="cd-added">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="channel-detail-footer">
+                <button class="btn btn-ghost" id="cd-pause-btn"><i class="fa-solid fa-pause"></i> Поставить на паузу</button>
+                <button class="btn btn-primary" id="cd-goto-leads"><i class="fa-solid fa-inbox"></i> Перейти к лидам</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Suggest Channel Modal -->
     <div id="suggest-channel-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Предложить канал">
         <div class="modal-content">
@@ -379,6 +458,37 @@
                 </div>
 
                 <div id="expert-inline-view" style="display:none;">
+
+                    <div class="manual-channel-panel panel">
+                        <h3 class="section-title"><i class="fa-solid fa-link"></i> Добавить канал вручную</h3>
+                        <p class="field-hint mb-4">Вставьте ссылку на Telegram-канал, группу VK или другое сообщество, и система подключит его к парсингу.</p>
+
+                        <div class="manual-channel-platform-select">
+                            <button class="manual-platform-btn active" data-platform="telegram"><i class="fa-brands fa-telegram"></i> Telegram</button>
+                            <button class="manual-platform-btn" data-platform="vk"><i class="fa-brands fa-vk"></i> VKontakte</button>
+                            <button class="manual-platform-btn disabled" data-platform="avito"><i class="fa-solid fa-cube"></i> Avito (Скоро)</button>
+                        </div>
+
+                        <div class="manual-channel-input-row">
+                            <div class="search-wrapper" style="flex: 1;">
+                                <i class="fa-solid fa-link"></i>
+                                <input type="text" class="form-control" id="manual-channel-url" placeholder="https://t.me/channel_name или https://vk.com/group_name" autocomplete="off">
+                            </div>
+                            <button class="btn btn-primary" id="manual-channel-add-btn" style="height: 48px; padding: 0 24px; white-space: nowrap;">
+                                <i class="fa-solid fa-plus"></i> Добавить
+                            </button>
+                        </div>
+
+                        <div class="manual-channel-tags">
+                            <span class="field-hint" style="margin-bottom: 0;">Примеры:</span>
+                            <button class="manual-tag-btn" data-url="https://t.me/ai_ru">t.me/ai_ru</button>
+                            <button class="manual-tag-btn" data-url="https://t.me/b2b_sales">t.me/b2b_sales</button>
+                            <button class="manual-tag-btn" data-url="https://t.me/nocode_chat">t.me/nocode_chat</button>
+                        </div>
+
+                        <div id="manual-channels-list" class="manual-channels-list"></div>
+                    </div>
+
                     <div class="settings-layout-form">
                         <div class="form-card">
                             <h2 class="mb-6"><i class="fa-solid fa-building text-primary"></i> Контекст компании</h2>

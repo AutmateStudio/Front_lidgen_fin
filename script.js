@@ -559,6 +559,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     : base + ' · ' + SUFFIXES[i % SUFFIXES.length] + ' #' + (i + 1);
                 const members = 800 + Math.floor(Math.random() * 180000);
                 const msgPerDay = 8 + Math.floor(Math.random() * 420);
+                const addedAt = Date.now() - i * 86400000 * (0.3 + Math.random() * 2);
+                const daysActive = Math.max(1, Math.floor((Date.now() - addedAt) / 86400000));
+                const messagesProcessed = daysActive * msgPerDay + Math.floor(Math.random() * 500);
+                const leadsFound = Math.floor(messagesProcessed * (0.002 + Math.random() * 0.06));
                 list.push({
                     id: 'ch-' + id++,
                     name: name,
@@ -566,7 +570,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     members: members,
                     msgPerDay: msgPerDay,
                     active: Math.random() > 0.18,
-                    addedAt: Date.now() - i * 86400000 * (0.3 + Math.random() * 2)
+                    addedAt: addedAt,
+                    daysActive: daysActive,
+                    messagesProcessed: messagesProcessed,
+                    leadsFound: leadsFound
                 });
             }
             return list;
@@ -648,6 +655,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return '<div class="icon-box icon-tg"><i class="fa-brands fa-telegram"></i></div>';
         }
 
+        function getConversion(ch) {
+            if (!ch.messagesProcessed) return 0;
+            return (ch.leadsFound / ch.messagesProcessed) * 100;
+        }
+
+        function convColor(pct) {
+            if (pct >= 3) return 'green';
+            if (pct >= 1) return 'yellow';
+            return 'red';
+        }
+
+        function renderStatsRow(ch) {
+            var conv = getConversion(ch);
+            var color = convColor(conv);
+            return (
+                '<div class="channel-stats-row">' +
+                '<span class="ch-stat-chip"><i class="fa-solid fa-calendar-days"></i> ' + ch.daysActive + ' дн.</span>' +
+                '<span class="ch-stat-chip"><i class="fa-solid fa-envelope-open-text"></i> ' + fmtNum(ch.messagesProcessed) + '</span>' +
+                '<span class="ch-stat-chip"><i class="fa-solid fa-user-check"></i> ' + fmtNum(ch.leadsFound) + '</span>' +
+                '<span class="ch-stat-chip ch-conv-chip ch-conv-chip--' + color + '"><i class="fa-solid fa-percent"></i> ' + conv.toFixed(1) + '%</span>' +
+                '</div>'
+            );
+        }
+
         function renderCard(ch) {
             const statusBadge = ch.active
                 ? '<span class="badge-inline badge-success">Активен</span>'
@@ -664,6 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 '<label class="switch">' +
                 '<input type="checkbox" class="channel-active-toggle" data-id="' + ch.id + '"' + (ch.active ? ' checked' : '') + '>' +
                 '<span class="slider"></span></label></div>' +
+                renderStatsRow(ch) +
                 '<div class="channel-footer">' + statusBadge +
                 '<button type="button" class="btn btn-ghost channel-more-btn" style="padding: 4px 8px;" data-id="' + ch.id + '">' +
                 '<i class="fa-solid fa-ellipsis"></i></button></div></div>'
@@ -675,16 +707,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusBadge = ch.active
                 ? '<span class="badge-inline badge-success">Активен</span>'
                 : '<span class="badge-inline badge-gray">Пауза</span>';
+            var conv = getConversion(ch);
+            var color = convColor(conv);
             return (
-                '<tr data-channel-id="' + ch.id + '">' +
+                '<tr data-channel-id="' + ch.id + '" style="cursor:pointer;">' +
                 '<td>' + iconPlatform(ch.platform) + '</td>' +
                 '<td class="cell-title">' + escapeHtml(ch.name) + '<div class="cell-meta">' + plat + '</div></td>' +
                 '<td class="cell-meta">' + fmtNum(ch.members) + '</td>' +
                 '<td class="cell-meta">~' + fmtNum(ch.msgPerDay) + '/д</td>' +
+                '<td class="cell-meta">' + ch.daysActive + ' дн.</td>' +
+                '<td class="cell-meta">' + fmtNum(ch.messagesProcessed) + '</td>' +
+                '<td class="cell-meta">' + fmtNum(ch.leadsFound) + '</td>' +
+                '<td><span class="ch-conv-chip ch-conv-chip--' + color + '" style="font-size:12px; padding:3px 8px; border-radius:6px;">' + conv.toFixed(1) + '%</span></td>' +
                 '<td>' + statusBadge + '</td>' +
                 '<td class="cell-actions">' +
                 '<label class="switch"><input type="checkbox" class="channel-active-toggle" data-id="' + ch.id + '"' + (ch.active ? ' checked' : '') + '><span class="slider"></span></label> ' +
-                '<button type="button" class="btn btn-ghost channel-more-btn" style="padding: 4px 8px;" data-id="' + ch.id + '"><i class="fa-solid fa-ellipsis"></i></button>' +
                 '</td></tr>'
             );
         }
@@ -781,7 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 els.mount.innerHTML =
                     '<div class="channel-table-wrap">' +
                     '<table class="channel-table"><thead><tr>' +
-                    '<th></th><th>Канал</th><th>Аудитория</th><th>Активность</th><th>Статус</th><th></th>' +
+                    '<th></th><th>Канал</th><th>Аудитория</th><th>Сообщ./день</th><th>Дней</th><th>Обработано</th><th>Лиды</th><th>Конв.</th><th>Статус</th><th></th>' +
                     '</tr></thead><tbody>' +
                     pageItems.map(renderRow).join('') +
                     '</tbody></table></div>';
@@ -808,10 +845,115 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Channel detail modal
+        var cdOverlay = document.getElementById('channel-detail-overlay');
+        var cdClose = document.getElementById('cd-close');
+        var cdPauseBtn = document.getElementById('cd-pause-btn');
+        var cdGotoLeads = document.getElementById('cd-goto-leads');
+        var currentDetailChannel = null;
+
+        function openChannelDetail(ch) {
+            if (!cdOverlay || !ch) return;
+            currentDetailChannel = ch;
+
+            document.getElementById('cd-name').textContent = ch.name;
+            document.getElementById('cd-platform').textContent = ch.platform === 'vk' ? 'VKontakte' : 'Telegram';
+
+            var iconEl = document.getElementById('cd-icon');
+            iconEl.className = 'icon-box ' + (ch.platform === 'vk' ? 'icon-vk' : 'icon-tg');
+            iconEl.innerHTML = ch.platform === 'vk' ? '<i class="fa-brands fa-vk"></i>' : '<i class="fa-brands fa-telegram"></i>';
+
+            var statusBadge = document.getElementById('cd-status-badge');
+            if (ch.active) {
+                statusBadge.className = 'badge-inline badge-success';
+                statusBadge.textContent = 'Активен';
+            } else {
+                statusBadge.className = 'badge-inline badge-gray';
+                statusBadge.textContent = 'Пауза';
+            }
+
+            document.getElementById('cd-days').textContent = ch.daysActive;
+            document.getElementById('cd-messages').textContent = fmtNum(ch.messagesProcessed);
+            document.getElementById('cd-leads').textContent = fmtNum(ch.leadsFound);
+
+            var conv = getConversion(ch);
+            var color = convColor(conv);
+            document.getElementById('cd-conversion').textContent = conv.toFixed(1) + '%';
+
+            var convIcon = document.getElementById('cd-conv-icon');
+            if (color === 'green') {
+                convIcon.style.background = '#dcfce7';
+                convIcon.style.color = '#166534';
+            } else if (color === 'yellow') {
+                convIcon.style.background = '#fef3c7';
+                convIcon.style.color = '#92400e';
+            } else {
+                convIcon.style.background = '#fee2e2';
+                convIcon.style.color = '#991b1b';
+            }
+
+            var convLabel = document.getElementById('cd-conv-label');
+            convLabel.textContent = conv.toFixed(1) + '%';
+            convLabel.style.color = color === 'green' ? '#166534' : color === 'yellow' ? '#92400e' : '#991b1b';
+
+            var fill = document.getElementById('cd-conv-fill');
+            var fillWidth = Math.min(conv * 10, 100);
+            fill.style.width = fillWidth + '%';
+            fill.className = 'cd-conv-fill cd-conv-fill--' + color;
+
+            document.getElementById('cd-members').textContent = fmtNum(ch.members);
+            document.getElementById('cd-msgperday').textContent = '~' + fmtNum(ch.msgPerDay) + '/день';
+
+            var addedDate = new Date(ch.addedAt);
+            document.getElementById('cd-added').textContent = addedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+            cdPauseBtn.innerHTML = ch.active
+                ? '<i class="fa-solid fa-pause"></i> Поставить на паузу'
+                : '<i class="fa-solid fa-play"></i> Включить';
+
+            cdOverlay.classList.add('active');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function closeChannelDetail() {
+            if (cdOverlay) cdOverlay.classList.remove('active');
+            currentDetailChannel = null;
+        }
+
+        if (cdClose) cdClose.addEventListener('click', closeChannelDetail);
+        if (cdOverlay) {
+            cdOverlay.addEventListener('click', function (e) {
+                if (e.target === cdOverlay) closeChannelDetail();
+            });
+        }
+        if (cdPauseBtn) {
+            cdPauseBtn.addEventListener('click', function () {
+                if (!currentDetailChannel) return;
+                currentDetailChannel.active = !currentDetailChannel.active;
+                showToast(currentDetailChannel.active ? 'Канал включён' : 'Канал на паузе', currentDetailChannel.active ? 'success' : 'info');
+                render();
+                openChannelDetail(currentDetailChannel);
+            });
+        }
+        if (cdGotoLeads) {
+            cdGotoLeads.addEventListener('click', function () {
+                closeChannelDetail();
+                var navItem = document.querySelector('.nav-item[data-tab="inbox"]');
+                if (navItem) navItem.click();
+            });
+        }
+
         els.mount.addEventListener('click', function (e) {
-            const btn = e.target.closest('.channel-more-btn');
-            if (!btn) return;
-            showToast('Меню канала (демо)', 'info');
+            if (e.target.closest('.channel-active-toggle') || e.target.closest('.switch')) return;
+
+            var card = e.target.closest('.channel-card');
+            var row = e.target.closest('tr[data-channel-id]');
+            var target = card || row;
+            if (!target) return;
+
+            var chId = target.getAttribute('data-channel-id');
+            var ch = channelsStore.find(function (c) { return c.id === chId; });
+            if (ch) openChannelDetail(ch);
         });
 
         els.pagination.addEventListener('click', function (e) {
@@ -869,6 +1011,151 @@ document.addEventListener('DOMContentLoaded', () => {
         render();
     })();
 
+
+    // ── 20. Manual Channel Input (Discovery Expert Mode) ──
+    (function initManualChannelInput() {
+        const urlInput = document.getElementById('manual-channel-url');
+        const addBtn = document.getElementById('manual-channel-add-btn');
+        const listEl = document.getElementById('manual-channels-list');
+        const platformBtns = document.querySelectorAll('.manual-platform-btn');
+        const tagBtns = document.querySelectorAll('.manual-tag-btn');
+
+        if (!urlInput || !addBtn || !listEl) return;
+
+        let selectedPlatform = 'telegram';
+        const manualChannels = [];
+
+        platformBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.classList.contains('disabled')) return;
+                platformBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPlatform = btn.getAttribute('data-platform');
+                updatePlaceholder();
+            });
+        });
+
+        function updatePlaceholder() {
+            if (selectedPlatform === 'vk') {
+                urlInput.placeholder = 'https://vk.com/group_name';
+            } else {
+                urlInput.placeholder = 'https://t.me/channel_name';
+            }
+        }
+
+        tagBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                urlInput.value = btn.getAttribute('data-url');
+                urlInput.focus();
+            });
+        });
+
+        function detectPlatform(url) {
+            if (/t\.me|telegram/i.test(url)) return 'telegram';
+            if (/vk\.com|vkontakte/i.test(url)) return 'vk';
+            return selectedPlatform;
+        }
+
+        function extractName(url) {
+            let cleaned = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const match = cleaned.match(/(?:t\.me|vk\.com)\/(.+)/);
+            if (match) return match[1].replace(/[?#].*$/, '');
+            return cleaned;
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function addChannel() {
+            const rawUrl = urlInput.value.trim();
+            if (!rawUrl) {
+                showToast('Вставьте ссылку на канал или группу', 'error');
+                urlInput.focus();
+                return;
+            }
+
+            const platform = detectPlatform(rawUrl);
+            const name = extractName(rawUrl);
+
+            if (manualChannels.some(c => c.url === rawUrl)) {
+                showToast('Этот канал уже добавлен', 'info');
+                return;
+            }
+
+            const ch = { id: 'mc-' + Date.now(), url: rawUrl, name: name, platform: platform };
+            manualChannels.push(ch);
+            renderList();
+            urlInput.value = '';
+            showToast('Канал «' + name + '» добавлен в парсинг!');
+
+            platformBtns.forEach(b => b.classList.remove('active'));
+            const matchBtn = document.querySelector('.manual-platform-btn[data-platform="' + platform + '"]');
+            if (matchBtn) matchBtn.classList.add('active');
+            selectedPlatform = platform;
+        }
+
+        function removeChannel(id) {
+            const idx = manualChannels.findIndex(c => c.id === id);
+            if (idx !== -1) {
+                const removed = manualChannels.splice(idx, 1)[0];
+                showToast('Канал «' + removed.name + '» удалён', 'info');
+                renderList();
+            }
+        }
+
+        function renderList() {
+            if (manualChannels.length === 0) {
+                listEl.innerHTML = '';
+                return;
+            }
+
+            listEl.innerHTML = manualChannels.map(ch => {
+                const iconClass = ch.platform === 'vk' ? 'icon-vk' : 'icon-tg';
+                const iconFA = ch.platform === 'vk' ? 'fa-brands fa-vk' : 'fa-brands fa-telegram';
+                return (
+                    '<div class="manual-channel-item" data-id="' + ch.id + '">' +
+                    '<div class="icon-box ' + iconClass + '"><i class="' + iconFA + '"></i></div>' +
+                    '<div class="manual-channel-item-info">' +
+                    '<div class="manual-channel-item-name">' + escapeHtml(ch.name) + '</div>' +
+                    '<div class="manual-channel-item-url">' + escapeHtml(ch.url) + '</div>' +
+                    '</div>' +
+                    '<span class="manual-channel-item-status badge-inline badge-success">На парсинге</span>' +
+                    '<button type="button" class="manual-channel-remove-btn" data-id="' + ch.id + '" title="Удалить">' +
+                    '<i class="fa-solid fa-xmark"></i></button>' +
+                    '</div>'
+                );
+            }).join('');
+        }
+
+        addBtn.addEventListener('click', addChannel);
+        urlInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); addChannel(); }
+        });
+
+        urlInput.addEventListener('paste', () => {
+            setTimeout(() => {
+                const val = urlInput.value.trim();
+                if (val) {
+                    const detected = detectPlatform(val);
+                    platformBtns.forEach(b => b.classList.remove('active'));
+                    const matchBtn = document.querySelector('.manual-platform-btn[data-platform="' + detected + '"]');
+                    if (matchBtn) matchBtn.classList.add('active');
+                    selectedPlatform = detected;
+                }
+            }, 50);
+        });
+
+        listEl.addEventListener('click', e => {
+            const btn = e.target.closest('.manual-channel-remove-btn');
+            if (!btn) return;
+            removeChannel(btn.getAttribute('data-id'));
+        });
+    })();
 
     // ── 21. Suggest Channel Modal ──
     const suggestModal = document.getElementById('suggest-channel-modal');
