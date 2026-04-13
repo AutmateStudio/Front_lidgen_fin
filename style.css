@@ -768,24 +768,102 @@ input:checked + .slider:before { transform: translateX(20px); }
     background: var(--bg-color);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
 }
 .lead-dialog-footer {
     padding: var(--space-md) var(--space-lg);
     border-top: 1px solid var(--border-color);
     display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 10px;
 }
-.lead-dialog-input {
-    flex: 1;
-    padding: 12px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
-    outline: none;
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
+
+.lead-dialog-open-chat {
+    width: 100%;
 }
-.lead-dialog-input:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px var(--light-blue); }
+.lead-dialog-open-chat [data-lucide] {
+    width: 16px;
+    height: 16px;
+}
+.lead-dialog-section {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+.lead-dialog-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.lead-dialog-section-header h4 {
+    font-size: 14px;
+    font-weight: 700;
+}
+.lead-dialog-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.lead-dialog-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.lead-dialog-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--light-blue);
+    border: 1px solid #bfdbfe;
+    color: var(--primary-blue);
+    font-size: 12px;
+    font-weight: 600;
+}
+.lead-dialog-tag-remove {
+    border: none;
+    background: transparent;
+    color: var(--primary-blue);
+    cursor: pointer;
+    line-height: 1;
+    font-size: 14px;
+    padding: 0;
+}
+.lead-dialog-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.lead-dialog-tag-form {
+    display: flex;
+    gap: 8px;
+}
+.lead-dialog-tag-input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+}
+.lead-dialog-notes {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    padding: 12px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 120px;
+}
+.lead-dialog-notes:focus,
+.lead-dialog-tag-input:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px var(--light-blue);
+    outline: none;
+}
 
 /* ── Lead Link Button (kanban cards) ── */
 .lead-link {

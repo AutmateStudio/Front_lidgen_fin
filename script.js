@@ -414,13 +414,83 @@ document.addEventListener('DOMContentLoaded', () => {
     const leadDialogPlatform = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-platform') : null;
     const leadDialogCloseBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-close') : null;
     const leadDialogExternalBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-external') : null;
-    const leadDialogSendBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-send') : null;
-    const leadDialogInput = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-input') : null;
+    const leadDialogOpenChatBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-open-chat') : null;
+    const leadDialogTags = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-tags') : null;
+    const leadDialogTagInput = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-tag-input') : null;
+    const leadDialogAddTagBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-add-tag') : null;
+    const leadDialogNotes = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-notes') : null;
+    const leadDialogSaveNotesBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-save-notes') : null;
+    const leadDialogClearNotesBtn = leadDialogOverlay ? leadDialogOverlay.querySelector('.lead-dialog-clear-notes') : null;
+    const leadDialogSeedTags = ['Новый', 'Требует ответа', 'Квалификация'];
+    const leadProfiles = {};
+    let currentLeadKey = '';
+    let currentLeadChatUrl = '';
+    let currentLeadPlatformLabel = '';
     let wasDragged = false;
 
-    function openLeadDialog(name, platformTag) {
+    function toLeadKey(name, platformTag) {
+        return (name + '::' + platformTag).toLowerCase();
+    }
+
+    function normalizeTag(tag) {
+        return String(tag || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function leadEscapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function buildLeadChatUrl(platformTag) {
+        const platform = String(platformTag || '').toLowerCase();
+        if (platform.indexOf('telegram') !== -1) return 'https://t.me/';
+        if (platform.indexOf('vk') !== -1) return 'https://vk.com/im';
+        if (platform.indexOf('insta') !== -1 || platform.indexOf('instagram') !== -1) return 'https://www.instagram.com/direct/inbox/';
+        return '';
+    }
+
+    function renderLeadTags() {
+        if (!leadDialogTags || !currentLeadKey || !leadProfiles[currentLeadKey]) return;
+        const tags = leadProfiles[currentLeadKey].tags || [];
+        if (!tags.length) {
+            leadDialogTags.innerHTML = '<span class="lead-dialog-empty">Добавьте хотя бы один тег для классификации лида.</span>';
+            return;
+        }
+
+        leadDialogTags.innerHTML = tags.map(tag => (
+            '<span class="lead-dialog-tag-chip">' +
+            '<span>' + leadEscapeHtml(tag) + '</span>' +
+            '<button type="button" class="lead-dialog-tag-remove" data-tag="' + leadEscapeHtml(tag) + '" aria-label="Удалить тег">×</button>' +
+            '</span>'
+        )).join('');
+    }
+
+    function ensureLeadProfile(name, platformTag, seedTags) {
+        const key = toLeadKey(name, platformTag);
+        const preparedTags = (seedTags || [])
+            .map(normalizeTag)
+            .filter(Boolean);
+
+        if (!leadProfiles[key]) {
+            const uniqueTags = Array.from(new Set(leadDialogSeedTags.concat(preparedTags)));
+            leadProfiles[key] = { tags: uniqueTags, notes: '' };
+        } else if (preparedTags.length) {
+            const merged = leadProfiles[key].tags.concat(preparedTags);
+            leadProfiles[key].tags = Array.from(new Set(merged.map(normalizeTag).filter(Boolean)));
+        }
+        return key;
+    }
+
+    function openLeadDialog(name, platformTag, seedTags) {
         if (!leadDialogOverlay) return;
         if (leadDialogName) leadDialogName.textContent = name;
+        currentLeadPlatformLabel = platformTag || 'платформе';
+        currentLeadChatUrl = buildLeadChatUrl(platformTag);
+        currentLeadKey = ensureLeadProfile(name, platformTag, seedTags);
+
         if (leadDialogPlatform) {
             leadDialogPlatform.className = 'c-tag lead-dialog-platform';
             if (platformTag) {
@@ -431,6 +501,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (tagLower.includes('insta')) leadDialogPlatform.classList.add('c-tag--instagram');
             }
         }
+
+        if (leadDialogNotes) {
+            leadDialogNotes.value = leadProfiles[currentLeadKey].notes || '';
+        }
+        if (leadDialogTagInput) {
+            leadDialogTagInput.value = '';
+        }
+        renderLeadTags();
         leadDialogOverlay.classList.add('active');
     }
     function closeLeadDialog() {
@@ -446,12 +524,58 @@ document.addEventListener('DOMContentLoaded', () => {
     if (leadDialogExternalBtn) {
         leadDialogExternalBtn.addEventListener('click', () => showToast('Открытие профиля лида...', 'info'));
     }
-    if (leadDialogSendBtn && leadDialogInput) {
-        leadDialogSendBtn.addEventListener('click', () => {
-            if (leadDialogInput.value.trim()) {
-                showToast('Сообщение отправлено!');
-                leadDialogInput.value = '';
+    if (leadDialogOpenChatBtn) {
+        leadDialogOpenChatBtn.addEventListener('click', () => {
+            if (!currentLeadChatUrl) {
+                showToast('Платформа чата для лида не определена', 'error');
+                return;
             }
+            window.open(currentLeadChatUrl, '_blank', 'noopener,noreferrer');
+            showToast('Переход в чат на ' + currentLeadPlatformLabel, 'info');
+        });
+    }
+    if (leadDialogAddTagBtn && leadDialogTagInput) {
+        leadDialogAddTagBtn.addEventListener('click', () => {
+            const tag = normalizeTag(leadDialogTagInput.value);
+            if (!tag || !currentLeadKey) return;
+            const tags = leadProfiles[currentLeadKey].tags;
+            if (tags.indexOf(tag) !== -1) {
+                showToast('Такой тег уже добавлен', 'info');
+                return;
+            }
+            tags.push(tag);
+            leadDialogTagInput.value = '';
+            renderLeadTags();
+        });
+        leadDialogTagInput.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            leadDialogAddTagBtn.click();
+        });
+    }
+    if (leadDialogTags) {
+        leadDialogTags.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.lead-dialog-tag-remove');
+            if (!removeBtn || !currentLeadKey) return;
+            const rawTag = normalizeTag(removeBtn.getAttribute('data-tag'));
+            leadProfiles[currentLeadKey].tags = leadProfiles[currentLeadKey].tags.filter(tag => tag !== rawTag);
+            renderLeadTags();
+        });
+    }
+    if (leadDialogSaveNotesBtn && leadDialogNotes) {
+        leadDialogSaveNotesBtn.addEventListener('click', () => {
+            if (!currentLeadKey) return;
+            leadProfiles[currentLeadKey].notes = leadDialogNotes.value.trim();
+            showToast('Заметка сохранена');
+        });
+    }
+    if (leadDialogClearNotesBtn && leadDialogNotes) {
+        leadDialogClearNotesBtn.addEventListener('click', () => {
+            leadDialogNotes.value = '';
+            if (currentLeadKey) {
+                leadProfiles[currentLeadKey].notes = '';
+            }
+            showToast('Заметка очищена', 'info');
         });
     }
 
@@ -461,9 +585,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (wasDragged) { wasDragged = false; return; }
             if (e.target.closest('.lead-link')) return;
             const name = card.querySelector('.card-title') ? card.querySelector('.card-title').textContent : 'Лид';
-            const tagEl = card.querySelector('.c-tag:not(.c-tag--hot):not(.c-tag--success)');
+            const tagEl = card.querySelector('.c-tag--telegram, .c-tag--vk, .c-tag--instagram');
             const platform = tagEl ? tagEl.textContent.trim() : '';
-            openLeadDialog(name, platform);
+            const extraTags = Array.from(card.querySelectorAll('.card-tags .c-tag'))
+                .filter(tag => !tag.classList.contains('c-tag--telegram') && !tag.classList.contains('c-tag--vk') && !tag.classList.contains('c-tag--instagram'))
+                .map(tag => normalizeTag(tag.textContent));
+            openLeadDialog(name, platform, extraTags);
         });
     });
 
